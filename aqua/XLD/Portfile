@@ -1,0 +1,89 @@
+# -*- coding: utf-8; mode: tcl; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- vim:fenc=utf-8:ft=tcl:et:sw=4:ts=4:sts=4
+
+PortSystem          1.0
+PortGroup           xcode 1.0
+
+name                XLD
+version             20230627
+categories          aqua audio
+platforms           macosx
+supported_archs     x86_64 arm64 i386 ppc
+license             GPL-2
+maintainers         nomaintainer
+description         X Lossless Decoder: Lossless audio decoder for Mac OS X
+long_description    X Lossless Decoder(XLD) is a tool for Mac OS X that is \
+                    able to decode/convert/play various 'lossless' audio \
+                    files. The supported audio files can be split into some \
+                    tracks with cue sheet when decoding.
+
+homepage            https://tmkk.undo.jp/xld/index_e.html
+
+fetch.type          svn
+svn.url             https://svn.code.sf.net/p/xld/code/tags/xld-${version}/
+worksrcdir          xld-${version}
+
+depends_lib         port:flac \
+                    port:libebur128 \
+                    port:libsndfile \
+                    port:monkeys-audio \
+                    port:soxr \
+                    port:wavpack \
+                    port:libcddb \
+                    port:openssl
+#                    port:mp4tools
+
+patch.args-append   --fuzz 20
+
+patchfiles-append   xcodeproj-deps.patch \
+                    xcodeproj-link-SystemConfiguration_framework.patch \
+                    xcodeproj-add-XLDGainAnalyzer.patch \
+                    xcodeproj-no-libcrypto.patch \
+                    cddb.png.patch \
+                    xcodeproj-remove-legacy.patch \
+                    XLD.patch
+
+build.dir           ${worksrcpath}/XLD
+xcode.project       XLD_export.xcodeproj
+xcode.target        XLD
+xcode.scheme        XLD
+xcode.configuration Release
+
+variant universal   {}
+default_variants    +universal
+
+post-patch {
+    if {${os.major} > 10} {
+        # patch Interface Builder files to make them compile with newer versions
+        # of Xcode
+        system "find [file dirname ${worksrcpath}] -name '*.xib' -exec sed -i.bak \\
+            -e 's#<int key=\"IBDocument.SystemTarget\">10\[456\]0</int>#<int key=\"IBDocument.SystemTarget\">1070</int>#' \\
+            -e 's#<integer value=\"10\[456\]0\" key=\"NS.object.0\"/>#<integer value=\"1070\" key=\"NS.object.0\"/>#' \\
+            {} \\;"
+    }
+}
+
+# This should be removed if/when dealt with in the xcode portgroup; see:
+# https://trac.macports.org/ticket/57137
+if {[vercmp $xcodeversion 5.0] >= 0} {
+    build.pre_args      -derivedDataPath ${worksrcpath}/DerivedData
+    destroot.pre_args   -derivedDataPath ${worksrcpath}/DerivedData
+}
+
+build.pre_args-append -destination "generic/platform=macOS,name='Any Mac'"
+
+build.args-append   HEADER_SEARCH_PATHS='\$(HEADER_SEARCH_PATHS) ${prefix}/include' \
+                    LIBRARY_SEARCH_PATHS='\$(LIBRARY_SEARCH_PATHS) ${prefix}/lib'
+destroot.args-append \
+                    HEADER_SEARCH_PATHS='\$(HEADER_SEARCH_PATHS) ${prefix}/include' \
+                    LIBRARY_SEARCH_PATHS='\$(LIBRARY_SEARCH_PATHS) ${prefix}/lib'
+
+post-destroot {
+    # install CLI
+    file copy ${filespath}/xld ${worksrcpath}/xld.bin
+    reinplace "s|@MACPORTS_APP_DIR@|${applications_dir}|g" ${worksrcpath}/xld.bin
+    xinstall -m 0755 ${worksrcpath}/xld.bin ${destroot}${prefix}/bin/xld
+
+    # install READMEs
+    xinstall -d -m 0755 ${destroot}${prefix}/share/doc/${name}
+    xinstall -m 0644 {*}[glob ${filespath}/Readme/*] ${destroot}${prefix}/share/doc/${name}
+}

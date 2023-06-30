@@ -5,8 +5,6 @@ PortGroup               github 1.0
 PortGroup               xcode 1.0
 PortGroup               xcodeversion 1.0
 
-github.setup            GPGTools pinentry-mac 0.9.4 v
-revision                1
 categories              aqua security
 license                 GPL-3+
 maintainers             {ionic @Ionic}
@@ -18,35 +16,56 @@ long_description        ${description} \
                         custom interface based on Cocoa for OS X look and feel.
 homepage                https://github.com/GPGTools/pinentry-mac
 
-checksums               rmd160 b4023708d1320bd1b0ad5ce0dc35ec71fc68b33c \
+if {${os.major} >= 12 && ${configure.build_arch} in "x86_64 arm64"} {
+    github.setup        GPGTools pinentry-mac 0.9.4 v
+    revision            1
+
+    # Utilizes ARC which is x86_64/arm64-only. #45949
+    supported_archs     x86_64 arm64
+    installs_libs       no
+
+    checksums           rmd160 b4023708d1320bd1b0ad5ce0dc35ec71fc68b33c \
                         sha256 73e649213e17dd46340f202453ed835166245b63f0cf2a78203d51d620b2742c \
                         size   284942
 
-# Utilizes ARC which is x86_64/arm64-only. #45949
-supported_archs         x86_64 arm64
-installs_libs           no
 
-patchfiles              patch-includes-quotes.diff \
+    patchfiles          patch-includes-quotes.diff \
                         patch-includes-quotes-2.diff \
                         patch-apple-silicon.diff
 
-patch.pre_args          -p1
+    patch.pre_args      -p1
 
-# This is a temporary kludge. The new Xcode build system fails to
-# destroot this for reasons that are poorly understood.
-# Remove this when a better fix is known.
-if {[vercmp ${xcodeversion} 10.0] >= 0} {
-    destroot.pre_args   -UseNewBuildSystem=NO
-}
+    # This is a temporary kludge. The new Xcode build system fails to
+    # destroot this for reasons that are poorly understood.
+    # Remove this when a better fix is known.
+    if {[vercmp ${xcodeversion} 10.0] >= 0} {
+        destroot.pre_args   -UseNewBuildSystem=NO
+    }
 
-# xcodeproject has been created with Xcode 5 which is only available on 10.8 and up.
-minimum_xcodeversions   {12 5.0}
+    # xcodeproject has been created with Xcode 5 which is only available on 10.8 and up.
+    minimum_xcodeversions   {12 5.0}
 
-pre-fetch {
-    if {${os.major} < 12} {
-        ui_error    "This package is only compatible with Xcode 5 and up.
-                     Xcode 5 and up is not compatible with 10.7 and below."
-        error       "Unsupported operating system."
+    xcode.target            ${name}
+    xcode.configuration     Release
+} else {
+    # legacy version for old Mac OS X
+    github.setup        GPGTools pinentry-mac 0.8.1 v
+    revision            0
+
+    checksums           rmd160  3cbe052b88eb2ed1e0309c2716c8672958f6c82a \
+                        sha256  43da01553740354f221eab69d9ba0843fac6d3a0455494342ab60e14425c6bed \
+                        size    790277
+
+    patch.pre_args      -p1
+    patchfiles-append   0.8.1/no-arc.patch \
+                        0.8.1/no-codesign-check.patch
+
+    xcode.target        ${name}
+    if {${os.major} > 10} {
+        xcode.configuration Release
+    } else {
+        xcode.configuration "Release with ppc"
+        patchfiles-append 0.8.1/no-lion-keychain.patch
     }
 }
 
@@ -85,6 +104,3 @@ platform macosx {
              or simply log out and back in again.
             "
 }
-
-xcode.target            ${name}
-xcode.configuration     Release

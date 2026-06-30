@@ -1,0 +1,36 @@
+# -*- coding: utf-8; mode: tcl; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- vim:fenc=utf-8:ft=tcl:et:sw=4:ts=4:sts=4
+
+PortSystem          1.0
+PortGroup           github 1.0
+
+github.setup        dotike fsh v0.2.0
+# Change github.tarball_from to 'releases' or 'archive' next update
+github.tarball_from archive
+revision            0
+checksums           rmd160  3f6e4b45bc03ebb1adef0eac4253a117571ebf6e \
+                    sha256  a6aa113e232183e9c72dfa4eb2e76acbb141c592ca0e35d3313222e1327b290b \
+                    size    144484
+
+name                fsh
+version             0.2.0
+categories          shells
+platforms           darwin freebsd
+maintainers         openmaintainer
+license             BSD-2
+
+description         FreeBSD sh(1) built for macOS.
+
+long_description    A Bourne-lineage shell with faithful echo — no \
+                    escape interpretation by default, honoring the \
+                    original contract.
+
+depends_lib-append  port:libedit
+
+use_configure       no
+
+build.env           "PREFIX=${prefix}" \
+                    "LIBEDIT_PREFIX=${prefix}"
+build.cmd           make
+build.target        all
+
+destroot.env        "PREFIX=${destroot}${prefix}"
